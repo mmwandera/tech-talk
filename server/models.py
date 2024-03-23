@@ -1,10 +1,14 @@
 import bcrypt
-import re
-
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 
 db = SQLAlchemy()
+
+followers = db.Table(
+    'followers',
+    db.Column('follower_id', db.Integer, db.ForeignKey('users.id'), primary_key=True),
+    db.Column('followed_id', db.Integer, db.ForeignKey('users.id'), primary_key=True)
+)
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -16,10 +20,10 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
-    following = db.relationship('User', secondary='followers', 
-                                primaryjoin=(id == 'followers.c.follower_id'),
-                                secondaryjoin=(id == 'followers.c.followed_id'),
-                                backref='followers')
+    following = db.relationship('User', secondary=followers,
+                                primaryjoin=(followers.c.follower_id == id),
+                                secondaryjoin=(followers.c.followed_id == id),
+                                backref=db.backref('followers', lazy='dynamic'))
 
     @property
     def password(self):
@@ -43,20 +47,6 @@ class User(db.Model):
         Check if the provided password matches the hashed password.
         """
         return bcrypt.checkpw(password.encode('utf-8'), self._password.encode('utf-8'))
-
-    @staticmethod
-    def is_valid_email(email):
-        """
-        Validate email address format.
-        """
-        return bool(re.match(r'^[\w\.-]+@[\w\.-]+\.\w+$', email))
-
-    @staticmethod
-    def is_valid_username(username):
-        """
-        Validate username format.
-        """
-        return bool(re.match(r'^[a-zA-Z0-9_-]{3,50}$', username))
 
 class BlogPost(db.Model):
     __tablename__ = 'blog_posts'
